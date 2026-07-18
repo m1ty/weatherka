@@ -28,8 +28,13 @@ PARAMS = {
         "precipitation_sum", "precipitation_probability_max",
         "sunrise", "sunset",
     ]),
+    "hourly": ",".join([
+        "temperature_2m", "precipitation_probability", "precipitation",
+    ]),
     "forecast_days": 5,
 }
+
+HOURLY_WINDOW = 25        # точек на графике: сейчас + 24 часа
 
 # WMO weather code -> короткое описание по-русски
 DESCRIPTIONS = {
@@ -65,7 +70,23 @@ async def fetch() -> dict:
         r.raise_for_status()
         raw = r.json()
 
-    cur, day = raw["current"], raw["daily"]
+    cur, day, hour = raw["current"], raw["daily"], raw["hourly"]
+
+    # почасовой срез: от текущего часа на сутки вперёд
+    now_h = datetime.fromisoformat(cur["time"]).replace(minute=0)
+    hourly = []
+    for i, t in enumerate(hour["time"]):
+        if datetime.fromisoformat(t) < now_h:
+            continue
+        hourly.append({
+            "time": t,
+            "temp": hour["temperature_2m"][i],
+            "prob": hour["precipitation_probability"][i] or 0,
+            "mm": hour["precipitation"][i] or 0,
+        })
+        if len(hourly) >= HOURLY_WINDOW:
+            break
+
     daily = []
     for i, date in enumerate(day["time"]):
         daily.append({
@@ -94,4 +115,5 @@ async def fetch() -> dict:
             "is_day": bool(cur.get("is_day", 1)),
         },
         "daily": daily,
+        "hourly": hourly,
     }
