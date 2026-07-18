@@ -1,0 +1,15 @@
+[Unit]
+Description=Weatherka - weather frame for e-ink display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/weatherka/app
+ExecStart=/opt/weatherka/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+# координаты/место можно переопределить здесь:
+# Environment=LAT=55.55 LON=37.55 PLACE=Бутово REFRESH_MINUTES=20
+
+[Install]
+WantedBy=multi-user.target
