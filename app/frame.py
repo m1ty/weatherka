@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from weather import describe
 
 W, H = 800, 480
-RENDER_VERSION = 2   # менять при правках макета — форсирует перерисовку рамки
+RENDER_VERSION = 3   # менять при правках макета — форсирует перерисовку рамки
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -181,10 +181,25 @@ def draw_icon(d: ImageDraw.ImageDraw, code: int | None, cx: float, cy: float,
 
 # ---------------------------------------------------------------- блоки макета
 
-def _metric_row(d: ImageDraw.ImageDraw, cx: float, y: int, parts, size=20):
-    """Строка из чередующихся сегментов (текст, цвет, жирность), по центру."""
-    fonts = {b: _font(size, b) for b in (True, False)}
-    total = sum(d.textlength(t, font=fonts[b]) for t, _c, b in parts)
+def _fit_font(d: ImageDraw.ImageDraw, text: str, max_w: float,
+              size: int, bold=True, min_size=10) -> ImageFont.FreeTypeFont:
+    """Крупнейший шрифт, при котором текст влезает в max_w.
+    Страхует от «поехавших» границ на шрифтах разной ширины (Arial/DejaVu)."""
+    while size > min_size and d.textlength(text, font=_font(size, bold)) > max_w:
+        size -= 2
+    return _font(size, bold)
+
+
+def _metric_row(d: ImageDraw.ImageDraw, cx: float, y: int, parts,
+                size=20, max_w=W - 48.0):
+    """Строка из чередующихся сегментов (текст, цвет, жирность), по центру.
+    Размер шрифта ужимается, пока строка не влезет в max_w."""
+    while size > 10:
+        fonts = {b: _font(size, b) for b in (True, False)}
+        total = sum(d.textlength(t, font=fonts[b]) for t, _c, b in parts)
+        if total <= max_w:
+            break
+        size -= 1
     x = cx - total / 2
     for t, color, b in parts:
         d.text((x, y), t, font=fonts[b], fill=color)
@@ -263,7 +278,8 @@ def render_frame(data: dict) -> bytes:
 
     # ── слева: сейчас ──
     draw_icon(d, cur["code"], 95, 152, 115, cur["is_day"])
-    d.text((180, 96), _fmt_temp(cur["temp"]), font=_font(84),
+    t_str = _fmt_temp(cur["temp"])
+    d.text((175, 96), t_str, font=_fit_font(d, t_str, 372 - 175, 84),
            fill=_temp_color(cur["temp"]))
     d.text((36, 226), describe(cur["code"]), font=_font(28, False), fill=BLACK)
     d.text((36, 264), f"ощущается {_fmt_temp(cur['feels'])}",
