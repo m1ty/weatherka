@@ -14,7 +14,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com/), no API key needed
 
 ## What's on the card
 
-![Frame render](docs/frame.png)
+![Frame render](docs/frame-en.png)
 
 - **Now** — icon (sun or moon depending on time of day), large
   temperature (red in heat ≥ +25°, blue in frost ≤ 0°), conditions,
