@@ -1,54 +1,59 @@
 # Weatherka
 
-Самодельный аналог TRMNL: сервис рендерит прогноз погоды для Бутово (Москва)
-в 800×480 PNG под e-ink рамку Spectra 6 (E6) и отдаёт его по URL.
-Рамка опрашивает `/api/frame.png`; благодаря ETag/304 перерисовка
-происходит только когда погода действительно изменилась — бережёт
-батарею и циклы обновления E6.
+[Русская версия](README.ru.md)
 
-Источник данных — [Open-Meteo](https://open-meteo.com/), без API-ключа.
+A DIY take on TRMNL: this service renders the weather forecast for
+Butovo (Moscow) into an 800×480 PNG for a Spectra 6 (E6) e-ink photo
+frame and serves it over HTTP. The frame polls `/api/frame.png`;
+thanks to ETag/304 the display only redraws when the weather actually
+changes — saving battery and E6 refresh cycles.
 
-![Рамка на полке](docs/frame-photo.jpg)
+Weather data comes from [Open-Meteo](https://open-meteo.com/), no API key needed.
 
-## Что на кадре
+![Frame on a shelf](docs/frame-photo.jpg)
 
-![Кадр](docs/frame.png)
+## What's on the card
 
-- **Сейчас** — иконка (солнце/луна по времени суток), температура крупно
-  (красная в жару ≥ +25°, синяя в мороз ≤ 0°), описание, «ощущается»;
-- **Прогноз на 4 дня** — иконка, max/min, вероятность и сумма осадков;
-- **Метрики** — ветер, влажность, давление (мм рт. ст.), восход/закат;
-- **График на сутки** — почасовая температура с подписями экстремумов,
-  синие столбики — вероятность осадков, пунктир — граница суток.
+![Frame render](docs/frame.png)
 
-Иконки рисуются примитивами PIL (контурные облака, осадки, гроза, туман),
-без внешних ассетов. Используются только чистые цвета палитры Spectra 6,
-чтобы прошивка отображала их 1:1 без дизеринга. Размер шрифта строк
-автоматически ужимается под ширину — макет не разъезжается на разных
-шрифтах (DejaVu в контейнере, Arial на маке при разработке).
+- **Now** — icon (sun or moon depending on time of day), large
+  temperature (red in heat ≥ +25°, blue in frost ≤ 0°), conditions,
+  "feels like";
+- **4-day forecast** — icon, max/min temperature, precipitation
+  probability and amount;
+- **Metrics** — wind, humidity, pressure (mmHg), sunrise/sunset;
+- **24-hour chart** — hourly temperature with min/max labels, blue
+  bars for precipitation probability, dashed line at midnight.
 
-## Эндпоинты
+Icons are drawn with PIL primitives (outlined clouds, rain, snow,
+thunderstorm, fog) — no external assets. Only pure Spectra 6 palette
+colors are used, so the frame firmware maps them 1:1 without dithering.
+Text lines auto-shrink to fit their width, so the layout survives
+different font metrics (DejaVu in the container, Arial on a Mac during
+development).
 
-- `GET /api/frame.png` — кадр для рамки (ETag/304)
-- `GET /api/weather` — данные в JSON
-- `GET /healthz` — статус
-- `GET /` — предпросмотр кадра в браузере
+## Endpoints
 
-## Настройка (env)
+- `GET /api/frame.png` — the card for the frame (ETag/304)
+- `GET /api/weather` — data as JSON
+- `GET /healthz` — status
+- `GET /` — browser preview of the card
 
-| Переменная | По умолчанию | |
+## Configuration (env)
+
+| Variable | Default | |
 |---|---|---|
-| `LAT` / `LON` | `55.55` / `37.55` | координаты (Бутово) |
-| `PLACE` | `Бутово` | название на кадре |
-| `WEATHER_TZ` | `Europe/Moscow` | часовой пояс |
-| `REFRESH_MINUTES` | `20` | период обновления прогноза |
-| `FRAME_LANG` | `ru` | язык кадра: `ru` или `en` (для `en` не забудь `PLACE=Butovo`) |
+| `LAT` / `LON` | `55.55` / `37.55` | coordinates (Butovo) |
+| `PLACE` | `Бутово` | place name shown on the card |
+| `WEATHER_TZ` | `Europe/Moscow` | timezone |
+| `REFRESH_MINUTES` | `20` | forecast refresh interval |
+| `FRAME_LANG` | `ru` | card language: `ru` or `en` (set `PLACE=Butovo` for `en`) |
 
-Переопределяются в `weatherka.service` (секция `Environment=`).
+Override them in `weatherka.service` (the `Environment=` line).
 
-## Установка в LXC (Proxmox)
+## Installing into an LXC container (Proxmox)
 
-Создать контейнер (на pve, шаблон Debian 12):
+Create a container (on the pve host, Debian 12 template):
 
 ```sh
 pct create 131 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
@@ -56,17 +61,17 @@ pct create 131 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp --unprivileged 1 --start 1
 ```
 
-Затем из клона этого репозитория на pve:
+Then, from a clone of this repository on the pve host:
 
 ```sh
-./setup.sh 131      # первичная установка: пакеты, venv, systemd
-./deploy.sh 131     # последующие обновления кода
+./setup.sh 131      # first-time install: packages, venv, systemd
+./deploy.sh 131     # subsequent code updates
 ```
 
-Кадр будет доступен по `http://<ip-контейнера>:8000/api/frame.png` —
-этот URL и указывается в настройках рамки как источник изображения.
+The card will be served at `http://<container-ip>:8000/api/frame.png` —
+point the frame at this URL as its image source.
 
-## Локальный запуск
+## Running locally
 
 ```sh
 python3 -m venv venv && venv/bin/pip install -r requirements.txt
