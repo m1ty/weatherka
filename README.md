@@ -42,6 +42,7 @@
 | `PLACE` | `Бутово` | название на кадре |
 | `WEATHER_TZ` | `Europe/Moscow` | часовой пояс |
 | `REFRESH_MINUTES` | `20` | период обновления прогноза |
+| `FRAME_LANG` | `ru` | язык кадра: `ru` или `en` (для `en` не забудь `PLACE=Butovo`) |
 
 Переопределяются в `weatherka.service` (секция `Environment=`).
 

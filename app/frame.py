@@ -15,10 +15,10 @@ from math import cos, pi, sin
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from weather import describe
+from weather import FRAME_LANG, describe
 
 W, H = 800, 480
-RENDER_VERSION = 3   # менять при правках макета — форсирует перерисовку рамки
+RENDER_VERSION = 4   # менять при правках макета — форсирует перерисовку рамки
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -56,9 +56,30 @@ def _font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
     return _FONT_CACHE[key]
 
 
-MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
-          "июля", "августа", "сентября", "октября", "ноября", "декабря"]
-WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+_L10N = {
+    "ru": {
+        "months": ["января", "февраля", "марта", "апреля", "мая", "июня",
+                   "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+        "weekdays": ["пн", "вт", "ср", "чт", "пт", "сб", "вс"],
+        "date": "{wd}, {day} {month}",
+        "today": "сегодня", "tomorrow": "завтра",
+        "feels": "ощущается", "wind": "ветер ", "humidity": "влажность ",
+        "pressure": "давление ", "sunrise": "восход ", "sunset": "закат ",
+        "ms": "м/с", "mm": "мм",
+    },
+    "en": {
+        "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "date": "{wd}, {month} {day}",
+        "today": "today", "tomorrow": "tomorrow",
+        "feels": "feels like", "wind": "wind ", "humidity": "humidity ",
+        "pressure": "pressure ", "sunrise": "sunrise ", "sunset": "sunset ",
+        "ms": "m/s", "mm": "mmHg",
+    },
+}
+L = _L10N[FRAME_LANG]
+WEEKDAYS = L["weekdays"]
 
 
 def _fmt_temp(t: float) -> str:
@@ -272,7 +293,8 @@ def render_frame(data: dict) -> bytes:
 
     # ── шапка ──
     d.text((24, 18), data["place"], font=_font(34), fill=BLACK)
-    date_s = f"{WEEKDAYS[upd.weekday()]}, {upd.day} {MONTHS[upd.month - 1]}"
+    date_s = L["date"].format(wd=WEEKDAYS[upd.weekday()], day=upd.day,
+                              month=L["months"][upd.month - 1])
     d.text((W - 24, 26), date_s, font=_font(24, False), fill=BLACK, anchor="ra")
     d.line([24, 66, W - 24, 66], fill=BLACK, width=2)
 
@@ -281,8 +303,9 @@ def render_frame(data: dict) -> bytes:
     t_str = _fmt_temp(cur["temp"])
     d.text((175, 96), t_str, font=_fit_font(d, t_str, 372 - 175, 84),
            fill=_temp_color(cur["temp"]))
-    d.text((36, 226), describe(cur["code"]), font=_font(28, False), fill=BLACK)
-    d.text((36, 264), f"ощущается {_fmt_temp(cur['feels'])}",
+    desc = describe(cur["code"])
+    d.text((36, 226), desc, font=_fit_font(d, desc, 340, 28, bold=False), fill=BLACK)
+    d.text((36, 264), f"{L['feels']} {_fmt_temp(cur['feels'])}",
            font=_font(22, False), fill=BLACK)
 
     # ── справа: прогноз на 4 дня ──
@@ -295,9 +318,10 @@ def render_frame(data: dict) -> bytes:
         if i:                                     # разделители колонок
             d.line([x0 + cw * i, 96, x0 + cw * i, 280], fill=BLACK, width=1)
         dt = datetime.fromisoformat(day["date"]).date()
-        label = ("сегодня" if dt == today else
-                 "завтра" if (dt - today).days == 1 else WEEKDAYS[dt.weekday()])
-        d.text((cx, 88), label, font=_font(20), fill=BLACK, anchor="ma")
+        label = (L["today"] if dt == today else
+                 L["tomorrow"] if (dt - today).days == 1 else WEEKDAYS[dt.weekday()])
+        d.text((cx, 88), label, font=_fit_font(d, label, cw - 10, 20),
+               fill=BLACK, anchor="ma")
         draw_icon(d, day["code"], cx, 152, 74)
         d.text((cx, 200), _fmt_temp(day["tmax"]), font=_font(30),
                fill=_temp_color(day["tmax"]), anchor="ma")
@@ -313,11 +337,13 @@ def render_frame(data: dict) -> bytes:
     ss = datetime.fromisoformat(daily[0]["sunset"]).strftime("%H:%M")
     dot = ("  ·  ", BLACK, False)
     _metric_row(d, W / 2, 314, [
-        ("ветер ", BLACK, False), (f"{cur['wind_ms']:.0f} м/с {cur['wind_dir']}", BLUE, True),
-        dot, ("влажность ", BLACK, False), (f"{cur['humidity']:.0f}%", BLUE, True),
-        dot, ("давление ", BLACK, False), (f"{cur['pressure_mmhg']} мм", BLUE, True),
-        dot, ("восход ", BLACK, False), (sr, BLACK, True),
-        dot, ("закат ", BLACK, False), (ss, BLACK, True),
+        (L["wind"], BLACK, False),
+        (f"{cur['wind_ms']:.0f} {L['ms']} {cur['wind_dir']}", BLUE, True),
+        dot, (L["humidity"], BLACK, False), (f"{cur['humidity']:.0f}%", BLUE, True),
+        dot, (L["pressure"], BLACK, False),
+        (f"{cur['pressure_mmhg']} {L['mm']}", BLUE, True),
+        dot, (L["sunrise"], BLACK, False), (sr, BLACK, True),
+        dot, (L["sunset"], BLACK, False), (ss, BLACK, True),
     ], size=18)
 
     # ── низ: почасовой график ──
@@ -333,7 +359,7 @@ def frame_etag(data: dict) -> str:
     при заметных изменениях, а не из-за каждой десятой градуса."""
     cur = data["current"]
     key = json.dumps([
-        RENDER_VERSION,
+        RENDER_VERSION, FRAME_LANG,
         round(cur["temp"]), round(cur["feels"]), cur["code"], cur["is_day"],
         round(cur["wind_ms"]), round(cur["humidity"] / 5), cur["pressure_mmhg"],
         [(dd["code"], round(dd["tmax"]), round(dd["tmin"]),
