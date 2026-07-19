@@ -1,0 +1,14 @@
+services:
+  weatherka:
+    build: .
+    container_name: weatherka
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      LAT: "55.55"             # координаты (по умолчанию — Бутово)
+      LON: "37.55"
+      PLACE: "Бутово"          # название на кадре
+      WEATHER_TZ: "Europe/Moscow"
+      REFRESH_MINUTES: "20"    # период опроса Open-Meteo
+      # FRAME_LANG: "en"       # язык карточки: ru (по умолчанию) | en

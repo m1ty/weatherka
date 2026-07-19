@@ -62,6 +62,19 @@ weather hasn't changed.
 
 Override them in `weatherka.service` (the `Environment=` line).
 
+## Running with Docker
+
+```sh
+docker compose up -d --build
+# UI: http://<host>:8000
+```
+
+Uncomment / edit the env vars in `docker-compose.yml` to set your
+location, place name, timezone, refresh interval, or `FRAME_LANG`.
+There's no state on disk — the forecast lives in memory and is
+re-fetched from Open-Meteo on every container start, so no volume is
+needed.
+
 ## Installing into an LXC container (Proxmox)
 
 Create a container (on the pve host, Debian 12 template):
